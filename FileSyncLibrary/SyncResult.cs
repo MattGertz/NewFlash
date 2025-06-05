@@ -20,7 +20,9 @@ public class SyncResult
     /// <summary>
     /// Gets or sets the number of files updated.
     /// </summary>
-    public int FilesUpdated { get; set; }    /// <summary>
+    public int FilesUpdated { get; set; }
+
+    /// <summary>
     /// Gets or sets the number of files skipped (already up to date).
     /// </summary>
     public int FilesSkipped { get; set; }
@@ -31,9 +33,16 @@ public class SyncResult
     public int FilesFailed { get; set; }
 
     /// <summary>
+    /// Gets or sets the total number of retry attempts made across all file operations.
+    /// </summary>
+    public int TotalRetryAttempts { get; set; }
+
+    /// <summary>
     /// Gets the collection of errors that occurred during synchronization.
     /// </summary>
-    public ConcurrentBag<string> Errors { get; } = new();    /// <summary>
+    public ConcurrentBag<string> Errors { get; } = new();
+
+    /// <summary>
     /// Gets a value indicating whether the synchronization completed successfully.
     /// </summary>
     public bool IsSuccess => FilesFailed == 0;
@@ -49,6 +58,11 @@ public class SyncResult
     /// <returns>A formatted string describing the synchronization results.</returns>
     public override string ToString()
     {
-        return $"Sync completed: {TotalFiles} total, {FilesCreated} created, {FilesUpdated} updated, {FilesSkipped} skipped, {FilesFailed} failed";
+        var baseMessage = $"Sync completed: {TotalFiles} total, {FilesCreated} created, {FilesUpdated} updated, {FilesSkipped} skipped, {FilesFailed} failed";
+        if (TotalRetryAttempts > 0)
+        {
+            baseMessage += $", {TotalRetryAttempts} retries";
+        }
+        return baseMessage;
     }
 }

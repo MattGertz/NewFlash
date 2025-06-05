@@ -32,9 +32,11 @@ public enum SyncAction
 /// <param name="Action">The action taken on the file</param>
 /// <param name="FilePath">The relative path of the file</param>
 /// <param name="Error">The error that occurred during processing, if any</param>
+/// <param name="AttemptsRequired">The number of attempts required to complete the operation</param>
 internal record FileProcessResult
 {
     public required SyncAction Action { get; init; }
     public required string FilePath { get; init; }
     public Exception? Error { get; init; }
+    public int AttemptsRequired { get; init; } = 1;
 }

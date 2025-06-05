@@ -31,9 +31,23 @@ Task<SyncResult> SynchronizeAsync(
     string originPath,              // Source directory
     string destinationPath,         // Target directory  
     string regexPatterns,          // Semicolon-separated patterns
+    short maxRetries = 0,          // Retry attempts per file (0 = disabled)
     IProgress<SyncProgress>? progress = null,
     CancellationToken cancellationToken = default
 )
+```
+
+### Retry Examples
+```csharp
+// No retries (default)
+var result1 = await sync.SynchronizeAsync(source, dest, "*.txt");
+
+// Retry up to 3 times for transient failures
+var result2 = await sync.SynchronizeAsync(source, dest, "*.txt", maxRetries: 3);
+
+// With progress and retry tracking
+var result3 = await sync.SynchronizeAsync(source, dest, "*.txt", maxRetries: 2, progress: progressReporter);
+Console.WriteLine($"Retry attempts made: {result3.TotalRetryAttempts}");
 ```
 
 ## 📊 Result Analysis
@@ -52,6 +66,7 @@ int failed = result.FilesFailed;     // Files that failed to process
 // Status
 bool success = result.IsSuccess;     // True if no failures
 int modified = result.FilesModified; // Created + Updated
+int retries = result.TotalRetryAttempts; // Total retry attempts made
 var errors = result.Errors;          // Detailed error messages
 ```
 

@@ -157,10 +157,8 @@ public class FileSynchronizerTests : IDisposable
         });
 
         await File.WriteAllTextAsync(Path.Combine(_originPath, "file1.txt"), "Content 1");
-        await File.WriteAllTextAsync(Path.Combine(_originPath, "file2.txt"), "Content 2");
-
-        // Act
-        await _synchronizer.SynchronizeAsync(_originPath, _destinationPath, @".*\.txt", progress);
+        await File.WriteAllTextAsync(Path.Combine(_originPath, "file2.txt"), "Content 2");        // Act
+        await _synchronizer.SynchronizeAsync(_originPath, _destinationPath, @".*\.txt", maxRetries: 0, progress: progress);
 
         // Give a small delay to ensure all progress reports are captured
         await Task.Delay(100);
@@ -358,14 +356,13 @@ public class FileSynchronizerTests : IDisposable
         // Make skip file same time as source
         File.SetLastWriteTime(destSkipFile, File.GetLastWriteTime(skipFile));
         
-        var progressReports = new ConcurrentBag<SyncProgress>();
-
-        // Act
+        var progressReports = new ConcurrentBag<SyncProgress>();        // Act
         var result = await _synchronizer.SynchronizeAsync(
             _originPath, 
             _destinationPath, 
             @".*\.txt",
-            new Progress<SyncProgress>(p => progressReports.Add(p)));
+            maxRetries: 0,
+            progress: new Progress<SyncProgress>(p => progressReports.Add(p)));
 
         // Assert
         Assert.Equal(3, result.TotalFiles);

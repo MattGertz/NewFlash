@@ -71,6 +71,35 @@ public static class Examples
     }
 
     /// <summary>
+    /// File synchronization with retry support for transient failures
+    /// </summary>
+    public static async Task RetryExample()
+    {
+        using var synchronizer = new FileSynchronizer();
+
+        var progress = new Progress<SyncProgress>(p =>
+        {
+            var emoji = p.CurrentOperation.StartsWith("Failed:") ? "❌" : 
+                       p.CurrentOperation.StartsWith("Retrying:") ? "🔄" : "✅";
+            Console.WriteLine($"{emoji} [{p.PercentComplete:F1}%] {p.CurrentOperation}");
+        });
+
+        var result = await synchronizer.SynchronizeAsync(
+            originPath: @"C:\Source\Documents",
+            destinationPath: @"C:\Backup\Documents",
+            regexPatterns: @".*\.(txt|doc|pdf)",
+            maxRetries: 3,  // Retry up to 3 times for transient failures
+            progress: progress
+        );
+
+        Console.WriteLine($"Sync completed: {result}");
+        if (result.TotalRetryAttempts > 0)
+        {
+            Console.WriteLine($"Made {result.TotalRetryAttempts} retry attempts for transient failures");
+        }
+    }
+
+    /// <summary>
     /// Complex regex patterns example
     /// </summary>
     public static async Task ComplexPatternsExample()

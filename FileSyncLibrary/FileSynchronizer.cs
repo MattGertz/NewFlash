@@ -20,14 +20,13 @@ public class FileSynchronizer : IDisposable
     {
         _maxConcurrency = maxConcurrency <= 0 ? Environment.ProcessorCount : maxConcurrency;
         _semaphore = new SemaphoreSlim(_maxConcurrency, _maxConcurrency);
-    }
-
-    /// <summary>
+    }    /// <summary>
     /// Synchronizes files from origin to destination directory based on regex patterns.
     /// </summary>
     /// <param name="originPath">Source directory path</param>
     /// <param name="destinationPath">Destination directory path</param>
     /// <param name="regexPatterns">Semicolon-separated regex patterns for file matching</param>
+    /// <param name="maxRetries">Maximum number of retry attempts per file (0 = no retries, default: 0)</param>
     /// <param name="progress">Optional progress reporter</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Synchronization result containing statistics</returns>
@@ -35,6 +34,7 @@ public class FileSynchronizer : IDisposable
         string originPath, 
         string destinationPath, 
         string regexPatterns,
+        short maxRetries = 0,
         IProgress<SyncProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
@@ -62,7 +62,7 @@ public class FileSynchronizer : IDisposable
                 await _semaphore.WaitAsync(cancellationToken);
                 try
                 {
-                    var fileResult = await ProcessFileAsync(originPath, destinationPath, filePath, cancellationToken);
+                    var fileResult = await ProcessFileAsync(originPath, destinationPath, filePath, maxRetries, cancellationToken);
                     UpdateResult(result, fileResult);
                     processedFiles.Add(filePath);
                     
@@ -126,44 +126,78 @@ public class FileSynchronizer : IDisposable
         string originPath, 
         string destinationPath, 
         string originFilePath,
+        short maxRetries,
         CancellationToken cancellationToken)
     {
         var relativePath = Path.GetRelativePath(originPath, originFilePath);
+        var destinationFilePath = Path.Combine(destinationPath, relativePath);
+        var destinationDir = Path.GetDirectoryName(destinationFilePath)!;
         
-        try
+        Exception? lastException = null;
+        int attemptCount = 0;
+        
+        while (attemptCount <= maxRetries)
         {
-            var destinationFilePath = Path.Combine(destinationPath, relativePath);
-            var destinationDir = Path.GetDirectoryName(destinationFilePath)!;
-
-            // Ensure destination directory exists
-            Directory.CreateDirectory(destinationDir);
-
-            var originInfo = new FileInfo(originFilePath);
-            var destinationInfo = new FileInfo(destinationFilePath);
-
-            if (!destinationInfo.Exists)
+            attemptCount++;
+            
+            try
             {
-                await CopyFileAsync(originFilePath, destinationFilePath, cancellationToken);
-                return new FileProcessResult { Action = SyncAction.Created, FilePath = relativePath };
-            }
+                // Ensure destination directory exists
+                Directory.CreateDirectory(destinationDir);
 
-            if (originInfo.LastWriteTime > destinationInfo.LastWriteTime)
+                var originInfo = new FileInfo(originFilePath);
+                var destinationInfo = new FileInfo(destinationFilePath);
+
+                if (!destinationInfo.Exists)
+                {
+                    await CopyFileAsync(originFilePath, destinationFilePath, cancellationToken);
+                    return new FileProcessResult 
+                    { 
+                        Action = SyncAction.Created, 
+                        FilePath = relativePath,
+                        AttemptsRequired = attemptCount
+                    };
+                }
+
+                if (originInfo.LastWriteTime > destinationInfo.LastWriteTime)
+                {
+                    await CopyFileAsync(originFilePath, destinationFilePath, cancellationToken);
+                    return new FileProcessResult 
+                    { 
+                        Action = SyncAction.Updated, 
+                        FilePath = relativePath,
+                        AttemptsRequired = attemptCount
+                    };
+                }
+
+                return new FileProcessResult 
+                { 
+                    Action = SyncAction.Skipped, 
+                    FilePath = relativePath,
+                    AttemptsRequired = attemptCount
+                };
+            }
+            catch (Exception ex) when (attemptCount <= maxRetries)
             {
-                await CopyFileAsync(originFilePath, destinationFilePath, cancellationToken);
-                return new FileProcessResult { Action = SyncAction.Updated, FilePath = relativePath };
+                lastException = ex;
+                
+                // Wait before retrying (exponential backoff)
+                if (attemptCount <= maxRetries)
+                {
+                    var delay = TimeSpan.FromMilliseconds(Math.Pow(2, attemptCount - 1) * 100);
+                    await Task.Delay(delay, cancellationToken);
+                }
             }
-
-            return new FileProcessResult { Action = SyncAction.Skipped, FilePath = relativePath };
         }
-        catch (Exception ex)
-        {
-            return new FileProcessResult 
-            { 
-                Action = SyncAction.Failed, 
-                FilePath = relativePath, 
-                Error = ex 
-            };
-        }
+        
+        // All retries exhausted
+        return new FileProcessResult 
+        { 
+            Action = SyncAction.Failed, 
+            FilePath = relativePath, 
+            Error = lastException,
+            AttemptsRequired = attemptCount
+        };
     }
 
     private static async Task CopyFileAsync(string sourcePath, string destinationPath, CancellationToken cancellationToken)
@@ -178,6 +212,12 @@ public class FileSynchronizer : IDisposable
     {
         lock (result)
         {
+            // Track retry attempts (subtract 1 since AttemptsRequired includes the initial attempt)
+            if (fileResult.AttemptsRequired > 1)
+            {
+                result.TotalRetryAttempts += (fileResult.AttemptsRequired - 1);
+            }
+
             switch (fileResult.Action)
             {
                 case SyncAction.Created:

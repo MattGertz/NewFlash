@@ -11,6 +11,7 @@ A high-performance, asynchronous C# library for synchronizing files between dire
 - ✅ **Smart File Comparison**: Only copies files that are missing or outdated
 - ✅ **Recursive Directory Processing**: Preserves directory structure
 - ✅ **Comprehensive Error Handling**: Detailed error reporting and graceful failures
+- ✅ **Retry Support**: Automatic retry with exponential backoff for transient failures
 - ✅ **Cancellation Support**: Respects cancellation tokens for responsive operations
 
 ## Installation
@@ -83,6 +84,24 @@ catch (OperationCanceledException)
 using var synchronizer = new FileSynchronizer(maxConcurrency: 4);
 ```
 
+### With Retry Support
+
+```csharp
+// Retry up to 3 times for transient failures (file locks, network issues)
+var result = await synchronizer.SynchronizeAsync(
+    originPath: @"C:\Source",
+    destinationPath: @"C:\Backup",
+    regexPatterns: @".*\.(txt|log)",
+    maxRetries: 3
+);
+
+Console.WriteLine($"Files processed: {result.FilesModified}");
+if (result.TotalRetryAttempts > 0)
+{
+    Console.WriteLine($"Total retry attempts made: {result.TotalRetryAttempts}");
+}
+```
+
 ## API Reference
 
 ### FileSynchronizer Class
@@ -99,6 +118,7 @@ Task<SyncResult> SynchronizeAsync(
     string originPath, 
     string destinationPath, 
     string regexPatterns,
+    short maxRetries = 0,
     IProgress<SyncProgress>? progress = null,
     CancellationToken cancellationToken = default)
 ```
@@ -107,6 +127,7 @@ Task<SyncResult> SynchronizeAsync(
 - `originPath`: Source directory path
 - `destinationPath`: Destination directory path  
 - `regexPatterns`: Semicolon-separated regex patterns for file matching
+- `maxRetries`: Maximum retry attempts per file operation (0 = no retries)
 - `progress`: Optional progress reporter
 - `cancellationToken`: Cancellation token
 
@@ -121,6 +142,7 @@ Properties:
 - `FilesSkipped`: Number of files skipped (already up-to-date)
 - `FilesFailed`: Number of files that failed to process
 - `FilesModified`: Total files created + updated
+- `TotalRetryAttempts`: Total number of retry attempts made across all files
 - `IsSuccess`: True if no files failed to process
 - `Errors`: Collection of detailed error messages for failed files
 
@@ -164,7 +186,8 @@ The library provides comprehensive error handling with graceful failure recovery
 var result = await synchronizer.SynchronizeAsync(
     originPath: @"C:\Source",
     destinationPath: @"C:\Backup",
-    regexPatterns: @".*\.txt"
+    regexPatterns: @".*\.txt",
+    maxRetries: 3  // Retry up to 3 times for failed operations
 );
 
 if (!result.IsSuccess)
@@ -177,7 +200,18 @@ if (!result.IsSuccess)
 }
 
 Console.WriteLine($"Successfully processed: {result.FilesCreated + result.FilesUpdated} files");
+if (result.TotalRetryAttempts > 0)
+{
+    Console.WriteLine($"Made {result.TotalRetryAttempts} retry attempts for transient failures");
+}
 ```
+
+### Retry Behavior
+- **Exponential Backoff**: Delays between retries increase exponentially (100ms, 200ms, 400ms, etc.)
+- **Transient Failure Recovery**: Automatically retries file locks, temporary I/O errors, and permission issues
+- **Attempt Tracking**: Each file tracks the number of attempts required for statistics
+- **Configurable Retries**: Set `maxRetries` parameter (0 = disabled, default)
+- **Cancellation Aware**: Respects cancellation tokens during retry delays
 
 ### Types of Errors Handled
 - **Access Denied**: Read-only files, permission issues
