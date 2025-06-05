@@ -1,7 +1,7 @@
 using FileSyncLibrary;
 using System.Diagnostics;
 
-namespace Examples;
+namespace FileSyncLibrary.Demo;
 
 /// <summary>
 /// Comprehensive demonstration of FileSyncLibrary capabilities including
@@ -9,7 +9,7 @@ namespace Examples;
 /// </summary>
 public class ComprehensiveDemo
 {
-    public static async Task Main(string[] args)
+    public static async Task RunAsync()
     {
         Console.WriteLine("🚀 FileSyncLibrary - Comprehensive Feature Demo");
         Console.WriteLine("================================================\n");
@@ -18,6 +18,7 @@ public class ComprehensiveDemo
         await RunErrorHandlingDemo();
         await RunPerformanceDemo();
         await RunCancellationDemo();
+        await RunDryRunDemo();
 
         Console.WriteLine("\n✅ All demonstrations completed successfully!");
         Console.WriteLine("The FileSyncLibrary is ready for production use with:");
@@ -26,6 +27,7 @@ public class ComprehensiveDemo
         Console.WriteLine("  • High-performance async operations");
         Console.WriteLine("  • Comprehensive cancellation support");
         Console.WriteLine("  • Thread-safe concurrent processing");
+        Console.WriteLine("  • Dry run capability");
     }
 
     private static async Task RunBasicSynchronizationDemo()
@@ -104,10 +106,8 @@ public class ComprehensiveDemo
                            p.CurrentOperation.StartsWith("Updated:") ? "🔄" : 
                            p.CurrentOperation.StartsWith("Skipped:") ? "⏭️" : "📋";
                 Console.WriteLine($"  {emoji} [{p.PercentComplete:F1}%] {p.CurrentOperation}");
-            });
-
-            var sw = Stopwatch.StartNew();
-            var result = await synchronizer.SynchronizeAsync(source, dest, @".*\.txt", progress);
+            });            var sw = Stopwatch.StartNew();
+            var result = await synchronizer.SynchronizeAsync(source, dest, @".*\.txt", progress: progress);
             sw.Stop();
 
             Console.WriteLine($"\n📊 RESULTS ({sw.ElapsedMilliseconds}ms):");
@@ -213,10 +213,11 @@ public class ComprehensiveDemo
                 Console.WriteLine($"  📊 [{p.PercentComplete:F1}%] {p.ProcessedFiles}/{p.TotalFiles} - {p.CurrentOperation}"));
 
             try
-            {
-                Console.WriteLine("🚀 Starting synchronization with 100ms cancellation timeout...");
+            {                Console.WriteLine("🚀 Starting synchronization with 100ms cancellation timeout...");
                 var result = await synchronizer.SynchronizeAsync(
-                    source, dest, @".*\.txt", cancelledProgress, cts.Token);
+                    source, dest, @".*\.txt", 
+                    progress: cancelledProgress, 
+                    cancellationToken: cts.Token);
                 
                 Console.WriteLine($"⚠️ Unexpected completion: {result.FilesCreated} files created before cancellation");
             }
@@ -231,6 +232,75 @@ public class ComprehensiveDemo
                     Console.WriteLine($"📁 Partial result: {createdFiles} files were successfully created before cancellation");
                 }
             }
+        }
+        finally
+        {
+            CleanupDirectory(tempRoot);
+        }
+
+        Console.WriteLine();
+    }
+    
+    private static async Task RunDryRunDemo()
+    {
+        Console.WriteLine("🔍 DRY RUN DEMO");
+        Console.WriteLine("----------------");
+
+        using var synchronizer = new FileSynchronizer();
+        var tempRoot = Path.Combine(Path.GetTempPath(), "FileSyncDemo_DryRun");
+        
+        try
+        {
+            var source = Path.Combine(tempRoot, "source");
+            var dest = Path.Combine(tempRoot, "destination");
+            
+            // Setup demo files
+            Directory.CreateDirectory(source);
+            Directory.CreateDirectory(dest);
+            
+            await File.WriteAllTextAsync(Path.Combine(source, "new_file.txt"), "This would be created");
+            await File.WriteAllTextAsync(Path.Combine(source, "updated.txt"), "New content");
+            await File.WriteAllTextAsync(Path.Combine(dest, "updated.txt"), "Old content");
+            await File.WriteAllTextAsync(Path.Combine(source, "same.txt"), "Same content");
+            await File.WriteAllTextAsync(Path.Combine(dest, "same.txt"), "Same content");
+            
+            // Set file times to ensure proper detection
+            File.SetLastWriteTime(Path.Combine(dest, "updated.txt"), DateTime.Now.AddDays(-1));
+
+            Console.WriteLine("📁 Source and destination prepared with test files");
+
+            // Run in dry run mode
+            Console.WriteLine("\n🔎 Running in dry run mode (preview only):");
+            var dryRunResult = await synchronizer.SynchronizeAsync(
+                source, 
+                dest, 
+                @".*\.txt",
+                dryRun: true,
+                progress: new Progress<SyncProgress>(p => 
+                    Console.WriteLine($"  {p}"))
+            );
+            
+            Console.WriteLine($"\n📊 Dry Run Results: {dryRunResult}");
+            Console.WriteLine($"  • Would Create: {dryRunResult.FilesCreated}");
+            Console.WriteLine($"  • Would Update: {dryRunResult.FilesUpdated}");
+            Console.WriteLine($"  • Would Skip: {dryRunResult.FilesSkipped}");
+            
+            // Verify no changes were made
+            Console.WriteLine("\n✅ Verifying no actual changes were made...");
+            var destFiles = Directory.GetFiles(dest).Select(Path.GetFileName).ToList();
+            Console.WriteLine($"  Files in destination: {string.Join(", ", destFiles)}");
+            
+            // Now run for real
+            Console.WriteLine("\n🔄 Now running the actual synchronization:");
+            var result = await synchronizer.SynchronizeAsync(
+                source, 
+                dest, 
+                @".*\.txt",
+                progress: new Progress<SyncProgress>(p => 
+                    Console.WriteLine($"  {p}"))
+            );
+            
+            Console.WriteLine($"\n📊 Actual Results: {result}");
         }
         finally
         {

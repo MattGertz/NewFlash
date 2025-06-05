@@ -1,13 +1,13 @@
 using FileSyncLibrary;
 
-namespace Examples;
+namespace FileSyncLibrary.Demo;
 
 /// <summary>
 /// Demonstrates the improved error handling capabilities of FileSyncLibrary
 /// </summary>
 public class ErrorHandlingDemo
 {
-    public static async Task RunDemo()
+    public static async Task RunAsync()
     {
         Console.WriteLine("=== FileSyncLibrary Error Handling Demo ===\n");
 
@@ -27,14 +27,12 @@ public class ErrorHandlingDemo
 
             // Progress reporting to show detailed actions
             var progress = new Progress<SyncProgress>(p =>
-                Console.WriteLine($"[{p.PercentComplete:F1}%] {p.CurrentOperation}"));
-
-            // Perform synchronization
+                Console.WriteLine($"[{p.PercentComplete:F1}%] {p.CurrentOperation}"));            // Perform synchronization
             var result = await synchronizer.SynchronizeAsync(
                 sourcePath,
                 destPath,
                 @".*\.txt",
-                progress);
+                progress: progress);
 
             // Display comprehensive results
             Console.WriteLine("\n=== Synchronization Results ===");

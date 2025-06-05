@@ -13,6 +13,7 @@ A high-performance, asynchronous C# library for synchronizing files between dire
 - ✅ **Comprehensive Error Handling**: Detailed error reporting and graceful failures
 - ✅ **Retry Support**: Automatic retry with exponential backoff for transient failures
 - ✅ **Cancellation Support**: Respects cancellation tokens for responsive operations
+- ✅ **Dry Run Mode**: Preview synchronization operations without making file changes
 
 ## Installation
 
@@ -102,6 +103,40 @@ if (result.TotalRetryAttempts > 0)
 }
 ```
 
+### With Dry Run Mode
+
+```csharp
+// Preview what would happen without making any file changes
+var dryRunResult = await synchronizer.SynchronizeAsync(
+    originPath: @"C:\Source",
+    destinationPath: @"C:\Backup",
+    regexPatterns: @".*\.(txt|log)",
+    dryRun: true
+);
+
+Console.WriteLine($"Dry run analysis: {dryRunResult}");
+Console.WriteLine($"Would create {dryRunResult.FilesCreated} files");
+Console.WriteLine($"Would update {dryRunResult.FilesUpdated} files");
+Console.WriteLine($"Would skip {dryRunResult.FilesSkipped} files");
+
+// Progress reporting shows dry run status
+var progress = new Progress<SyncProgress>(p => 
+    Console.WriteLine($"{p}"));  // Shows "[DRY RUN]" prefix in output
+
+var detailedDryRun = await synchronizer.SynchronizeAsync(
+    originPath: @"C:\Source",
+    destinationPath: @"C:\Backup",
+    regexPatterns: @".*\.(txt|log)",
+    dryRun: true,
+    progress: progress
+);
+
+// Output example:
+// [DRY RUN] Would Create: document.txt
+// [DRY RUN] Would Update: log.txt
+// [DRY RUN] Would Skip: unchanged.txt
+```
+
 ## API Reference
 
 ### FileSynchronizer Class
@@ -119,6 +154,7 @@ Task<SyncResult> SynchronizeAsync(
     string destinationPath, 
     string regexPatterns,
     short maxRetries = 0,
+    bool dryRun = false,
     IProgress<SyncProgress>? progress = null,
     CancellationToken cancellationToken = default)
 ```
@@ -128,6 +164,7 @@ Task<SyncResult> SynchronizeAsync(
 - `destinationPath`: Destination directory path  
 - `regexPatterns`: Semicolon-separated regex patterns for file matching
 - `maxRetries`: Maximum retry attempts per file operation (0 = no retries)
+- `dryRun`: When true, reports what would happen without making file changes
 - `progress`: Optional progress reporter
 - `cancellationToken`: Cancellation token
 
@@ -137,13 +174,14 @@ Task<SyncResult> SynchronizeAsync(
 
 Properties:
 - `TotalFiles`: Total number of files processed
-- `FilesCreated`: Number of new files created
-- `FilesUpdated`: Number of existing files updated
+- `FilesCreated`: Number of new files created (or would be created in dry run)
+- `FilesUpdated`: Number of existing files updated (or would be updated in dry run)
 - `FilesSkipped`: Number of files skipped (already up-to-date)
 - `FilesFailed`: Number of files that failed to process
 - `FilesModified`: Total files created + updated
 - `TotalRetryAttempts`: Total number of retry attempts made across all files
 - `IsSuccess`: True if no files failed to process
+- `IsDryRun`: True if the results came from a dry run operation
 - `Errors`: Collection of detailed error messages for failed files
 
 ### SyncProgress Record
@@ -170,6 +208,58 @@ Properties:
 - **Memory Usage**: Files are copied using buffered streams with 4KB buffers
 - **I/O Efficiency**: All file operations use async I/O to avoid blocking threads
 - **Large Files**: The library handles large files efficiently through streaming
+
+## Dry Run Mode
+
+The library provides a **dry run** capability that lets you preview synchronization operations without actually making any changes to the file system.
+
+### Key Benefits
+
+- **Preview Changes**: See exactly what files would be created, updated, or skipped
+- **Safety**: Avoid unintended file operations before committing to them
+- **Testing**: Validate regex patterns match the expected files
+- **Reporting**: Generate reports on needed synchronization actions
+- **Planning**: Estimate the scope of synchronization operations
+
+### Dry Run Behavior
+
+- No files are created or modified during dry run
+- No directories are created during dry run
+- File comparisons are still performed to determine required actions
+- Progress messages are prefixed with `[DRY RUN]` 
+- Actions are described as "Would Create", "Would Update", "Would Skip"
+- `SyncResult` properties report what would have happened
+- `SyncResult.ToString()` is prefixed with `[DRY RUN]`
+- `SyncResult.IsDryRun` property is set to `true`
+
+### Example Use Cases
+
+1. **Validation Before Critical Operations**:
+   ```csharp
+   // First run in dry run mode to validate
+   var dryRunResult = await synchronizer.SynchronizeAsync(sourcePath, backupPath, pattern, dryRun: true);
+   
+   // Check if the expected operations match intentions
+   if (dryRunResult.FilesCreated > 100)
+   {
+       Console.WriteLine("Warning: This operation would create over 100 files!");
+       Console.WriteLine("Please confirm before proceeding.");
+       if (!UserConfirms())
+           return;
+   }
+   
+   // Now execute the actual synchronization
+   var result = await synchronizer.SynchronizeAsync(sourcePath, backupPath, pattern);
+   ```
+
+2. **Reporting and Documentation**:
+   ```csharp
+   // Generate a report of pending changes
+   var dryRunResult = await synchronizer.SynchronizeAsync(sourcePath, destPath, pattern, dryRun: true,
+       progress: new Progress<SyncProgress>(p => LogOperation(p)));
+   
+   GenerateChangeReport(dryRunResult);
+   ```
 
 ## Error Handling
 

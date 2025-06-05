@@ -8,6 +8,11 @@ namespace FileSyncLibrary;
 public class SyncResult
 {
     /// <summary>
+    /// Gets or sets a value indicating whether this was a dry run operation.
+    /// </summary>
+    public bool IsDryRun { get; set; }
+
+    /// <summary>
     /// Gets or sets the total number of files processed.
     /// </summary>
     public int TotalFiles { get; set; }
@@ -50,15 +55,14 @@ public class SyncResult
     /// <summary>
     /// Gets the total number of files that were modified (created or updated).
     /// </summary>
-    public int FilesModified => FilesCreated + FilesUpdated;
-
-    /// <summary>
+    public int FilesModified => FilesCreated + FilesUpdated;    /// <summary>
     /// Gets a summary of the synchronization results.
     /// </summary>
     /// <returns>A formatted string describing the synchronization results.</returns>
     public override string ToString()
     {
-        var baseMessage = $"Sync completed: {TotalFiles} total, {FilesCreated} created, {FilesUpdated} updated, {FilesSkipped} skipped, {FilesFailed} failed";
+        var dryRunPrefix = IsDryRun ? "[DRY RUN] " : "";
+        var baseMessage = $"{dryRunPrefix}Sync completed: {TotalFiles} total, {FilesCreated} created, {FilesUpdated} updated, {FilesSkipped} skipped, {FilesFailed} failed";
         if (TotalRetryAttempts > 0)
         {
             baseMessage += $", {TotalRetryAttempts} retries";

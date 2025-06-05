@@ -27,6 +27,7 @@ public class FileSynchronizer : IDisposable
     /// <param name="destinationPath">Destination directory path</param>
     /// <param name="regexPatterns">Semicolon-separated regex patterns for file matching</param>
     /// <param name="maxRetries">Maximum number of retry attempts per file (0 = no retries, default: 0)</param>
+    /// <param name="dryRun">When true, reports what would be done without performing actual file operations (default: false)</param>
     /// <param name="progress">Optional progress reporter</param>
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Synchronization result containing statistics</returns>
@@ -35,6 +36,7 @@ public class FileSynchronizer : IDisposable
         string destinationPath, 
         string regexPatterns,
         short maxRetries = 0,
+        bool dryRun = false,
         IProgress<SyncProgress>? progress = null,
         CancellationToken cancellationToken = default)
     {
@@ -48,8 +50,7 @@ public class FileSynchronizer : IDisposable
         // Ensure destination directory exists
         Directory.CreateDirectory(destinationPath);
 
-        var patterns = ParseRegexPatterns(regexPatterns);
-        var result = new SyncResult();
+        var patterns = ParseRegexPatterns(regexPatterns);        var result = new SyncResult { IsDryRun = dryRun };
         var processedFiles = new ConcurrentBag<string>();
 
         try
@@ -57,16 +58,17 @@ public class FileSynchronizer : IDisposable
             var originFiles = await GetMatchingFilesAsync(originPath, patterns, cancellationToken);
             result.TotalFiles = originFiles.Count;
 
-            progress?.Report(new SyncProgress(0, result.TotalFiles, "Starting synchronization..."));            var tasks = originFiles.Select(async filePath =>
+            var operationMode = dryRun ? "[DRY RUN] " : "";
+            progress?.Report(new SyncProgress(0, result.TotalFiles, $"{operationMode}Starting synchronization..."));            var tasks = originFiles.Select(async filePath =>
             {
                 await _semaphore.WaitAsync(cancellationToken);
                 try
                 {
-                    var fileResult = await ProcessFileAsync(originPath, destinationPath, filePath, maxRetries, cancellationToken);
+                    var fileResult = await ProcessFileAsync(originPath, destinationPath, filePath, maxRetries, dryRun, cancellationToken);
                     UpdateResult(result, fileResult);
                     processedFiles.Add(filePath);
                     
-                    var actionDescription = GetActionDescription(fileResult);
+                    var actionDescription = GetActionDescription(fileResult, dryRun);
                     progress?.Report(new SyncProgress(
                         processedFiles.Count, 
                         result.TotalFiles, 
@@ -76,11 +78,10 @@ public class FileSynchronizer : IDisposable
                 {
                     _semaphore.Release();
                 }
-            });
-
-            await Task.WhenAll(tasks);
+            });            await Task.WhenAll(tasks);
             
-            progress?.Report(new SyncProgress(result.TotalFiles, result.TotalFiles, "Synchronization completed"));
+            var completionMessage = dryRun ? "[DRY RUN] Synchronization analysis completed" : "Synchronization completed";
+            progress?.Report(new SyncProgress(result.TotalFiles, result.TotalFiles, completionMessage));
             return result;
         }
         catch (Exception ex)
@@ -127,6 +128,7 @@ public class FileSynchronizer : IDisposable
         string destinationPath, 
         string originFilePath,
         short maxRetries,
+        bool dryRun,
         CancellationToken cancellationToken)
     {
         var relativePath = Path.GetRelativePath(originPath, originFilePath);
@@ -139,18 +141,23 @@ public class FileSynchronizer : IDisposable
         while (attemptCount <= maxRetries)
         {
             attemptCount++;
-            
-            try
+              try
             {
-                // Ensure destination directory exists
-                Directory.CreateDirectory(destinationDir);
+                // Ensure destination directory exists (even in dry run mode for validation)
+                if (!dryRun)
+                {
+                    Directory.CreateDirectory(destinationDir);
+                }
 
                 var originInfo = new FileInfo(originFilePath);
                 var destinationInfo = new FileInfo(destinationFilePath);
 
                 if (!destinationInfo.Exists)
                 {
-                    await CopyFileAsync(originFilePath, destinationFilePath, cancellationToken);
+                    if (!dryRun)
+                    {
+                        await CopyFileAsync(originFilePath, destinationFilePath, cancellationToken);
+                    }
                     return new FileProcessResult 
                     { 
                         Action = SyncAction.Created, 
@@ -161,7 +168,10 @@ public class FileSynchronizer : IDisposable
 
                 if (originInfo.LastWriteTime > destinationInfo.LastWriteTime)
                 {
-                    await CopyFileAsync(originFilePath, destinationFilePath, cancellationToken);
+                    if (!dryRun)
+                    {
+                        await CopyFileAsync(originFilePath, destinationFilePath, cancellationToken);
+                    }
                     return new FileProcessResult 
                     { 
                         Action = SyncAction.Updated, 
@@ -238,17 +248,15 @@ public class FileSynchronizer : IDisposable
                     break;
             }
         }
-    }
-
-    private static string GetActionDescription(FileProcessResult fileResult)
+    }    private static string GetActionDescription(FileProcessResult fileResult, bool dryRun = false)
     {
         return fileResult.Action switch
         {
-            SyncAction.Created => "Created",
-            SyncAction.Updated => "Updated",
-            SyncAction.Skipped => "Skipped",
+            SyncAction.Created => dryRun ? "[DRY RUN] Would Create" : "Created",
+            SyncAction.Updated => dryRun ? "[DRY RUN] Would Update" : "Updated", 
+            SyncAction.Skipped => dryRun ? "[DRY RUN] Would Skip" : "Skipped",
             SyncAction.Failed => "Failed",
-            _ => "Processed"
+            _ => dryRun ? "[DRY RUN] Would Process" : "Processed"
         };
     }
 
