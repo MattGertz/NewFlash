@@ -26,3 +26,8 @@ This is a C# class library project that provides file synchronization functional
 - Implement semaphore or similar mechanisms to control concurrent operations
 - Use memory-efficient file reading for large files
 - Implement proper disposal patterns for file handles
+
+## Build Considerations
+- We always use PowerShell for building and running the project
+- Never use '&&' in PowerShell commands; use semicolons for concatenation instead
+- Always ask before building so we can verify that files got saved to disk, since autosave can have issues with keeping up
