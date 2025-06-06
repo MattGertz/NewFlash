@@ -2,6 +2,16 @@
 
 A high-performance, asynchronous C# library for synchronizing files between directories based on regular expression patterns.
 
+## 🤖 AI Development Experiment
+
+**This project was developed entirely by AI using Claude 4.0 Sonnet in VS Code with GitHub Copilot.**
+
+- **AI Model**: Claude 4.0 Sonnet (Anthropic)
+- **Development Environment**: Visual Studio Code with GitHub Copilot extension
+- **Code Generation**: 100% AI-generated code including all library code, unit tests, WPF client, and documentation
+- **Human Role**: Requirements specification, testing feedback, and architectural guidance
+- **Development Period**: Complete implementation with comprehensive testing and multiple client applications
+
 ## Features
 
 - ✅ **Asynchronous Operations**: Non-blocking file operations using async/await
@@ -176,8 +186,7 @@ Properties:
 - `TotalFiles`: Total number of files processed
 - `FilesCreated`: Number of new files created (or would be created in dry run)
 - `FilesUpdated`: Number of existing files updated (or would be updated in dry run)
-- `FilesSkipped`: Number of files skipped (already up-to-date)
-- `FilesFailed`: Number of files that failed to process
+- `FilesSkipped`: Number of files that failed to process
 - `FilesModified`: Total files created + updated
 - `TotalRetryAttempts`: Total number of retry attempts made across all files
 - `IsSuccess`: True if no files failed to process
@@ -342,6 +351,89 @@ dotnet test --collect:"XPlat Code Coverage"
 
 This project is licensed under the MIT License - see the LICENSE file for details.
 
-## Contributing
+## Development Issues and Lessons Learned
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+This section documents significant development challenges encountered during this AI-assisted development experiment, particularly with VS Code tooling integration.
+
+### Critical VS Code Copilot Formatting Issues
+
+**Problem**: VS Code Copilot's `replace_string_in_file` and `insert_edit_into_file` tools consistently produced syntax-breaking formatting corruption, specifically:
+
+- **Missing Line Breaks**: Closing braces `}` concatenated with subsequent code on the same line
+- **Region Statement Formatting**: `#region` and `#endregion` statements merged with method signatures
+- **Method Definition Spacing**: Method definitions concatenated without proper line separation
+
+**Impact**: 
+- 7 critical formatting violations across 2 files required manual fixes
+- Broken C# syntax that prevented compilation
+- Repeated formatting corruption even after explicit correction instructions
+
+**Root Cause Analysis**:
+- Issue appears to be VS Code agent/tooling integration problem, not LLM comprehension issue
+- Claude 4.0 Sonnet clearly understood formatting requirements from copilot-instructions.md
+- Problem persisted despite explicit formatting rules and repeated corrections
+- Suggests VS Code extension's file editing tools may have internal formatting bugs
+
+**Workaround Required**:
+- Manual verification and correction of every file edit
+- Explicit formatting validation after each tool operation
+- Conservative editing approach with smaller, focused changes
+
+### VS Code Autosave Integration Problems
+
+**Problem**: VS Code's autosave feature created race conditions with build operations:
+
+- Build commands executed before file changes were written to disk
+- Inconsistent file state between editor and file system
+- Required manual "ask before building" workflow to ensure file persistence
+
+**Impact**:
+- Build failures with outdated file content
+- Confusion between displayed code and actual file state
+- Interrupted development workflow requiring manual verification
+
+**Workaround**:
+- Explicit save verification before any build operations
+- Manual coordination between file editing and build processes
+- Always confirm file persistence before executing build commands
+
+### WPF Application Debugging Challenges
+
+**Problem**: Silent application startup failures with minimal diagnostic information:
+
+- WPF applications fail silently without console output
+- Missing resource references caused immediate crashes
+- Standard debugging approaches ineffective for startup issues
+
+**Solution Implemented**:
+- Comprehensive exception handling in App.xaml.cs
+- File-based logging system for WPF diagnostics
+- Unhandled exception handlers for both application and dispatcher
+- Try-catch blocks around critical startup operations
+
+### Icon Resource Configuration Complexity
+
+**Problem**: WPF icon configuration requires multiple synchronized settings:
+
+- Project file ApplicationIcon property
+- Resource inclusion with proper build action
+- XAML pack URI format for icon references
+- Programmatic icon setting with error handling
+
+**Key Learning**: Icon setup is more complex than simple file inclusion and requires careful coordination of multiple configuration points.
+
+### Development Environment Recommendations
+
+Based on this experiment, future AI-assisted development should consider:
+
+1. **Tool Verification**: Always verify file editing tool output for syntax corruption
+2. **Incremental Validation**: Check compilation after each significant edit
+3. **Explicit Save Management**: Coordinate autosave with build operations
+4. **Comprehensive Logging**: Implement detailed logging for applications without console output
+5. **Conservative Editing**: Use smaller, focused edits to minimize formatting corruption risk
+
+### Bug Report Status
+
+A comprehensive bug report has been prepared for VS Code Copilot regarding the file editing tool formatting issues, emphasizing the syntax-breaking nature of the problem and its impact on development productivity.
+
+These issues highlight the importance of robust tooling integration and the need for careful validation when using AI-assisted development tools in complex IDE environments.
