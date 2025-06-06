@@ -31,3 +31,14 @@ This is a C# class library project that provides file synchronization functional
 - We always use PowerShell for building and running the project
 - Never use '&&' in PowerShell commands; use semicolons for concatenation instead
 - Always ask before building so we can verify that files got saved to disk, since autosave can have issues with keeping up
+
+## Code Formatting Rules
+- **CRITICAL**: Always ensure proper line breaks between code elements:
+  - After closing braces `}` before the next statement
+  - After `#region` statements before method signatures
+  - Between method definitions
+  - After `#endregion` statements
+- When using replace_string_in_file or insert_edit_into_file tools, always double-check that line breaks are preserved
+- Never concatenate closing braces with subsequent code on the same line
+- Always put each `#region` and `#endregion` on its own line
+- Verify that each method definition starts on a new line after the previous method's closing brace
