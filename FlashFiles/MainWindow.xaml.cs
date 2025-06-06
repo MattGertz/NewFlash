@@ -1,5 +1,7 @@
+using System;
 using System.ComponentModel;
 using System.Windows;
+using System.Windows.Media.Imaging;
 using FlashFiles.ViewModels;
 using FlashFiles.Services;
 
@@ -7,17 +9,27 @@ namespace FlashFiles
 {
     public partial class MainWindow : Window
     {
-        private MainWindowViewModel _viewModel;
-        
-        public MainWindow()
+        private MainWindowViewModel _viewModel;        public MainWindow()
         {
             InitializeComponent();
             _viewModel = new MainWindowViewModel(new SettingsService());
             DataContext = _viewModel;
+              // Set the window icon programmatically
+            try
+            {
+                var iconUri = new Uri("pack://application:,,,/FlashFiles.ico");
+                Icon = new BitmapImage(iconUri);
+            }
+            catch (Exception ex)
+            {
+                // Log the error but continue without icon
+                System.Diagnostics.Debug.WriteLine($"Failed to load icon: {ex.Message}");
+            }
             
             // Handle window events to save state
             SizeChanged += MainWindow_SizeChanged;
-            StateChanged += MainWindow_StateChanged;            Closing += MainWindow_Closing;
+            StateChanged += MainWindow_StateChanged;
+            Closing += MainWindow_Closing;
         }
 
         private async void MainWindow_SizeChanged(object sender, SizeChangedEventArgs e)

@@ -1,0 +1,11 @@
+<svg width="48" height="48" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle cx="24" cy="24" r="22" fill="#2563eb" stroke="#1e40af" stroke-width="2"/>
+  
+  <!-- Flash/Lightning bolt -->
+  <path d="M18 12 L30 24 L22 24 L26 36 L14 24 L22 24 Z" fill="#fbbf24" stroke="#f59e0b" stroke-width="1"/>
+  
+  <!-- File/Folder icon overlay -->
+  <rect x="10" y="32" width="28" height="12" rx="2" fill="#f3f4f6" stroke="#9ca3af" stroke-width="1"/>
+  <rect x="12" y="30" width="6" height="4" rx="1" fill="#9ca3af"/>
+</svg>

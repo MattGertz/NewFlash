@@ -8,10 +8,18 @@
     <AssemblyDescription>Modern file synchronization tool with regex pattern support</AssemblyDescription>
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
     <FileVersion>1.0.0.0</FileVersion>
-    <Company>FlashFiles</Company>
+    <Company>Matthew Gertz</Company>
     <Product>FlashFiles</Product>
     <Copyright>Copyright © 2025</Copyright>
+    <ApplicationIcon>FlashFiles.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="FlashFiles.ico" />
+    <None Include="FlashFiles.ico">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\FileSyncLibrary\FileSyncLibrary.csproj" />
