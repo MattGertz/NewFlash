@@ -13,6 +13,7 @@ namespace FlashFiles.Models
         public int MaxConcurrency { get; set; } = 5;
         public bool DryRun { get; set; } = false;
         public bool AutoScroll { get; set; } = true;
+        public short MaxRetries { get; set; } = 0;
         
         // Recently used directories for quick access
         public List<string> RecentSourceDirectories { get; set; } = new();

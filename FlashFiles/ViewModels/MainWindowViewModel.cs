@@ -7,6 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Input;
+using Microsoft.Win32;
 using FileSyncLibrary;
 using FlashFiles.Models;
 using FlashFiles.Services;
@@ -73,16 +74,15 @@ namespace FlashFiles.ViewModels
                     ((RelayCommand)StartSyncCommand).RaiseCanExecuteChanged();
                 }
             }
-        }
-
-        public string IncludePatterns
+        }        public string IncludePatterns
         {
             get => _settings.IncludePatterns;
             set
             {
                 if (_settings.IncludePatterns != value)
                 {
-                    _settings.IncludePatterns = value;
+                    // Extract regex pattern from human-readable text if needed
+                    _settings.IncludePatterns = ExtractRegexPattern(value);
                     OnPropertyChanged();
                 }
             }
@@ -95,13 +95,12 @@ namespace FlashFiles.ViewModels
             {
                 if (_settings.ExcludePatterns != value)
                 {
-                    _settings.ExcludePatterns = value;
+                    // Extract regex pattern from human-readable text if needed
+                    _settings.ExcludePatterns = ExtractRegexPattern(value);
                     OnPropertyChanged();
                 }
             }
-        }
-
-        public int MaxConcurrency
+        }public int MaxConcurrency
         {
             get => _settings.MaxConcurrency;
             set
@@ -109,6 +108,17 @@ namespace FlashFiles.ViewModels
                 if (_settings.MaxConcurrency != value)
                 {
                     _settings.MaxConcurrency = Math.Max(1, Math.Min(20, value));
+                    OnPropertyChanged();
+                }
+            }
+        }        public int MaxRetries
+        {
+            get => _settings.MaxRetries;
+            set
+            {
+                if (_settings.MaxRetries != value)
+                {
+                    _settings.MaxRetries = (short)Math.Max(0, Math.Min(10, value));
                     OnPropertyChanged();
                 }
             }
@@ -263,17 +273,15 @@ namespace FlashFiles.ViewModels
                 if (!string.IsNullOrWhiteSpace(ExcludePatterns))
                     AddLogEntry($"Exclude Patterns: {ExcludePatterns}");
                 AddLogEntry($"Max Concurrency: {MaxConcurrency}");
-                AddLogEntry("");
-
-                // Start synchronization
+                AddLogEntry("");                // Start synchronization
                 var result = await _synchronizer.SynchronizeAsync(
                     SourceDirectory,
                     DestinationDirectory,
                     IncludePatterns,
-                    0, // maxRetries
+                    (short)MaxRetries,
                     DryRun,
                     progress,
-                    _cancellationTokenSource.Token);                // Show results
+                    _cancellationTokenSource.Token);// Show results
                 AddLogEntry("");
                 AddLogEntry("=== RESULTS ===");
                 AddLogEntry($"Files processed: {result.TotalFiles}");
@@ -335,7 +343,8 @@ namespace FlashFiles.ViewModels
         {
             LogEntries.Clear();
             CurrentProgress = 0;
-            CurrentStatus = "Ready";            CurrentFile = string.Empty;
+            CurrentStatus = "Ready";
+            CurrentFile = string.Empty;
         }
 
         private async Task SaveSettingsAsync()
@@ -347,24 +356,45 @@ namespace FlashFiles.ViewModels
 
         #region Helper Methods
 
-        private string SelectFolder(string title, string initialPath)
+        /// <summary>
+        /// Extracts regex pattern from human-readable dropdown text.
+        /// Patterns are expected to be in parentheses at the end of the text.
+        /// </summary>
+        /// <param name="input">The input text from dropdown selection</param>
+        /// <returns>The extracted regex pattern or the original input if no pattern found</returns>
+        private static string ExtractRegexPattern(string input)
         {
-            // Simple folder selection using WPF MessageBox for now
-            // In a production app, you might want to use a more sophisticated dialog
-            var result = MessageBox.Show(
-                $"{title}\n\nCurrent path: {initialPath}\n\nPress OK to browse for a folder or Cancel to use current path.",
-                "Select Folder",
-                MessageBoxButton.OKCancel,
-                MessageBoxImage.Question);
+            if (string.IsNullOrWhiteSpace(input))
+                return string.Empty;
 
-            if (result == MessageBoxResult.OK)
+            // Look for pattern in parentheses at the end: "Description (pattern)"
+            var lastOpenParen = input.LastIndexOf('(');
+            var lastCloseParen = input.LastIndexOf(')');
+
+            if (lastOpenParen >= 0 && lastCloseParen > lastOpenParen && lastCloseParen == input.Length - 1)
             {
-                // For now, we'll return the initial path or prompt for manual entry
-                // This is a temporary solution until we implement a proper folder browser
-                return initialPath ?? string.Empty;
+                // Extract the pattern between parentheses
+                var pattern = input.Substring(lastOpenParen + 1, lastCloseParen - lastOpenParen - 1);
+                return pattern.Trim();
             }
 
-            return string.Empty;
+            // If no parentheses pattern found, return the input as-is (custom regex)
+            return input.Trim();
+        }        private string SelectFolder(string title, string initialPath)
+        {
+            var dialog = new OpenFolderDialog()
+            {
+                Title = title,
+                Multiselect = false
+            };
+
+            if (!string.IsNullOrWhiteSpace(initialPath) && Directory.Exists(initialPath))
+            {
+                dialog.InitialDirectory = initialPath;
+            }
+
+            var result = dialog.ShowDialog();
+            return result == true ? dialog.FolderName : string.Empty;
         }
 
         private void OnProgressUpdate(SyncProgress progress)
@@ -408,13 +438,13 @@ namespace FlashFiles.ViewModels
         private async Task LoadSettingsAsync()
         {
             _settings = await _settingsService.LoadSettingsAsync();
-            
-            // Notify all properties changed
+              // Notify all properties changed
             OnPropertyChanged(nameof(SourceDirectory));
             OnPropertyChanged(nameof(DestinationDirectory));
             OnPropertyChanged(nameof(IncludePatterns));
             OnPropertyChanged(nameof(ExcludePatterns));
             OnPropertyChanged(nameof(MaxConcurrency));
+            OnPropertyChanged(nameof(MaxRetries));
             OnPropertyChanged(nameof(DryRun));
             OnPropertyChanged(nameof(AutoScroll));
         }
