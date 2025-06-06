@@ -96,9 +96,10 @@ namespace FlashFiles.ViewModels
                     // Extract regex pattern from human-readable text if needed
                     _settings.ExcludePatterns = ExtractRegexPattern(value);
                     OnPropertyChanged();
-                }
-            }
-        }public int MaxConcurrency
+                }            }
+        }
+
+        public int MaxConcurrency
         {
             get => _settings.MaxConcurrency;
             set
@@ -107,9 +108,10 @@ namespace FlashFiles.ViewModels
                 {
                     _settings.MaxConcurrency = Math.Max(1, Math.Min(20, value));
                     OnPropertyChanged();
-                }
-            }
-        }        public int MaxRetries
+                }            }
+        }        
+
+        public int MaxRetries
         {
             get => _settings.MaxRetries;
             set
@@ -324,7 +326,9 @@ namespace FlashFiles.ViewModels
                 if (!string.IsNullOrWhiteSpace(ExcludePatterns))
                     AddLogEntry($"Exclude Patterns: {ExcludePatterns}");
                 AddLogEntry($"Max Concurrency: {MaxConcurrency}");
-                AddLogEntry("");                // Start synchronization
+                AddLogEntry("");
+                
+                // Start synchronization
                 var result = await _synchronizer.SynchronizeAsync(
                     SourceDirectory,
                     DestinationDirectory,
@@ -332,7 +336,9 @@ namespace FlashFiles.ViewModels
                     (short)MaxRetries,
                     DryRun,
                     progress,
-                    _cancellationTokenSource.Token);// Show results
+                    _cancellationTokenSource.Token);
+
+                // Show results
                 AddLogEntry("");
                 AddLogEntry("=== RESULTS ===");
                 AddLogEntry($"Files processed: {result.TotalFiles}");
@@ -425,11 +431,11 @@ namespace FlashFiles.ViewModels
                 // Extract the pattern between parentheses
                 var pattern = input.Substring(lastOpenParen + 1, lastCloseParen - lastOpenParen - 1);
                 return pattern.Trim();
-            }
-
-            // If no parentheses pattern found, return the input as-is (custom regex)
+            }            // If no parentheses pattern found, return the input as-is (custom regex)
             return input.Trim();
-        }        private string SelectFolder(string title, string initialPath)
+        }
+
+        private string SelectFolder(string title, string initialPath)
         {
             var dialog = new OpenFolderDialog()
             {

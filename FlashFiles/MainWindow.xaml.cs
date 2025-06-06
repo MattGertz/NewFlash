@@ -7,7 +7,9 @@ namespace FlashFiles
 {
     public partial class MainWindow : Window
     {
-        private MainWindowViewModel _viewModel;        public MainWindow()
+        private MainWindowViewModel _viewModel;
+        
+        public MainWindow()
         {
             InitializeComponent();
             _viewModel = new MainWindowViewModel(new SettingsService());
@@ -15,9 +17,10 @@ namespace FlashFiles
             
             // Handle window events to save state
             SizeChanged += MainWindow_SizeChanged;
-            StateChanged += MainWindow_StateChanged;
-            Closing += MainWindow_Closing;
-        }private async void MainWindow_SizeChanged(object sender, SizeChangedEventArgs e)
+            StateChanged += MainWindow_StateChanged;            Closing += MainWindow_Closing;
+        }
+
+        private async void MainWindow_SizeChanged(object sender, SizeChangedEventArgs e)
         {
             if (_viewModel != null && WindowState == WindowState.Normal)
             {

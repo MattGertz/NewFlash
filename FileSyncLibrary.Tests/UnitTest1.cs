@@ -143,7 +143,9 @@ public class FileSynchronizerTests : IDisposable
         var destinationNested = Path.Combine(_destinationPath, "subdir", "nested.txt");
         Assert.True(File.Exists(destinationNested));
         Assert.Equal("Nested content", await File.ReadAllTextAsync(destinationNested));
-    }    [Fact]
+    }
+
+    [Fact]
     public async Task SynchronizeAsync_WithProgressReporting_ShouldReportProgress()
     {
         // Arrange
@@ -168,7 +170,9 @@ public class FileSynchronizerTests : IDisposable
         Assert.True(reportCount >= 3, $"Expected at least 3 progress reports, but got {reportCount}. Reports: {string.Join(", ", progressReports.Select(r => r.CurrentOperation))}");
         Assert.Contains(progressReports, p => p.CurrentOperation.Contains("Starting"));
         Assert.Contains(progressReports, p => p.CurrentOperation.Contains("completed"));
-    }[Theory]
+    }
+
+    [Theory]
     [InlineData("")]
     [InlineData("   ")]
     public async Task SynchronizeAsync_WithInvalidParameters_ShouldThrowException(string invalidPath)
@@ -207,7 +211,9 @@ public class FileSynchronizerTests : IDisposable
         // Act & Assert
         await Assert.ThrowsAsync<DirectoryNotFoundException>(() =>
             _synchronizer.SynchronizeAsync(nonExistentPath, _destinationPath, @".*\.txt"));
-    }    [Fact]
+    }
+
+    [Fact]
     public async Task SynchronizeAsync_WithCancellation_ShouldRespectCancellationToken()
     {
         // Arrange
@@ -251,7 +257,10 @@ public class FileSynchronizerTests : IDisposable
 
         // Act & Assert
         Assert.Equal(8, result.FilesModified);
-        Assert.True(result.IsSuccess);    }    [Fact]
+        Assert.True(result.IsSuccess);
+    }
+
+    [Fact]
     public async Task SynchronizeAsync_WithSimpleSynchronization_ShouldCompleteSuccessfully()
     {
         // Arrange - Simple test that doesn't rely on specific error scenarios

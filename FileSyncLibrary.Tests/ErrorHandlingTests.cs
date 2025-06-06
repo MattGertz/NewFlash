@@ -20,30 +20,31 @@ public class ErrorHandlingTests : IDisposable
         Directory.CreateDirectory(_originPath);
         Directory.CreateDirectory(_destinationPath);
     }    [Fact(Skip = "Read-only file test - can be unstable in CI environment")]
+
     public async Task SynchronizeAsync_WithReadOnlyDestinationDirectory_ShouldReportFailureAndContinueProcessing()
     {
         // Arrange
         var goodFile = Path.Combine(_originPath, "good.txt");
         var failFile = Path.Combine(_originPath, "fail.txt");
-        
+
         await File.WriteAllTextAsync(goodFile, "Good content");
         await File.WriteAllTextAsync(failFile, "Fail content");
-        
+
         // Create a subdirectory in destination that will cause failures
         var readOnlyDir = Path.Combine(_destinationPath, "readonly");
         Directory.CreateDirectory(readOnlyDir);
-        
+
         // Create a read-only file that will block updates
         var failDestPath = Path.Combine(readOnlyDir, "fail.txt");
         await File.WriteAllTextAsync(failDestPath, "Old content");
         File.SetAttributes(failDestPath, FileAttributes.ReadOnly);
-        
+
         // Set up source files in matching subdirectory
         var sourceReadOnlyDir = Path.Combine(_originPath, "readonly");
         Directory.CreateDirectory(sourceReadOnlyDir);
         var sourceFailFile = Path.Combine(sourceReadOnlyDir, "fail.txt");
         await File.WriteAllTextAsync(sourceFailFile, "New content");
-        
+
         // Make source file newer to trigger update attempt
         File.SetLastWriteTime(sourceFailFile, DateTime.Now.AddMinutes(1));
 
