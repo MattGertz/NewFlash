@@ -30,14 +30,12 @@ namespace FlashFiles.ViewModels
             _settingsService = settingsService;
             _settings = new SyncSettings();
             _synchronizer = new FileSynchronizer();
-            
-            // Commands
+              // Commands
             BrowseSourceCommand = new RelayCommand(BrowseSource);
             BrowseDestinationCommand = new RelayCommand(BrowseDestination);
             StartSyncCommand = new RelayCommand(async () => await StartSyncAsync(), () => CanStartSync());
             StopSyncCommand = new RelayCommand(StopSync, () => IsSyncing);
             ClearLogCommand = new RelayCommand(ClearLog);
-            SaveSettingsCommand = new RelayCommand(async () => await SaveSettingsAsync());
             
             // Log collection
             LogEntries = new ObservableCollection<string>();
@@ -150,6 +148,59 @@ namespace FlashFiles.ViewModels
             }
         }
 
+        public double WindowWidth
+        {
+            get => _settings.WindowWidth;
+            set
+            {
+                if (Math.Abs(_settings.WindowWidth - value) > 1)
+                {
+                    _settings.WindowWidth = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public double WindowHeight
+        {
+            get => _settings.WindowHeight;
+            set
+            {
+                if (Math.Abs(_settings.WindowHeight - value) > 1)
+                {
+                    _settings.WindowHeight = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+        public bool WindowMaximized
+        {
+            get => _settings.WindowMaximized;
+            set
+            {
+                if (_settings.WindowMaximized != value)
+                {
+                    _settings.WindowMaximized = value;
+                    OnPropertyChanged();
+                    OnPropertyChanged(nameof(WindowState));
+                }
+            }
+        }
+
+        public WindowState WindowState
+        {
+            get => WindowMaximized ? WindowState.Maximized : WindowState.Normal;
+            set
+            {
+                var isMaximized = value == WindowState.Maximized;
+                if (WindowMaximized != isMaximized)
+                {
+                    WindowMaximized = isMaximized;
+                }
+            }
+        }
+
         public bool IsSyncing
         {
             get => _isSyncing;
@@ -214,7 +265,7 @@ namespace FlashFiles.ViewModels
         public ICommand BrowseDestinationCommand { get; }
         public ICommand StartSyncCommand { get; }
         public ICommand StopSyncCommand { get; }
-        public ICommand ClearLogCommand { get; }        public ICommand SaveSettingsCommand { get; }
+        public ICommand ClearLogCommand { get; }
 
         #endregion
 
@@ -345,9 +396,7 @@ namespace FlashFiles.ViewModels
             CurrentProgress = 0;
             CurrentStatus = "Ready";
             CurrentFile = string.Empty;
-        }
-
-        private async Task SaveSettingsAsync()
+        }        public async Task SaveSettingsAsync()
         {
             await _settingsService.SaveSettingsAsync(_settings);
         }
@@ -433,9 +482,7 @@ namespace FlashFiles.ViewModels
                 counter++;
             }
             return $"{number:n1} {suffixes[counter]}";
-        }
-
-        private async Task LoadSettingsAsync()
+        }        private async Task LoadSettingsAsync()
         {
             _settings = await _settingsService.LoadSettingsAsync();
               // Notify all properties changed
@@ -446,7 +493,13 @@ namespace FlashFiles.ViewModels
             OnPropertyChanged(nameof(MaxConcurrency));
             OnPropertyChanged(nameof(MaxRetries));
             OnPropertyChanged(nameof(DryRun));
-            OnPropertyChanged(nameof(AutoScroll));
+            OnPropertyChanged(nameof(AutoScroll));            OnPropertyChanged(nameof(WindowWidth));
+            OnPropertyChanged(nameof(WindowHeight));
+            OnPropertyChanged(nameof(WindowMaximized));
+            OnPropertyChanged(nameof(WindowState));
+            
+            // Re-evaluate command states after loading settings
+            ((RelayCommand)StartSyncCommand).RaiseCanExecuteChanged();
         }
 
         #endregion

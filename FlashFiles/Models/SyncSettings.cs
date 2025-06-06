@@ -21,7 +21,7 @@ namespace FlashFiles.Models
         
         // Window state
         public double WindowWidth { get; set; } = 1000;
-        public double WindowHeight { get; set; } = 700;
+        public double WindowHeight { get; set; } = 800;
         public bool WindowMaximized { get; set; } = false;
         
         public SyncSettings Clone()

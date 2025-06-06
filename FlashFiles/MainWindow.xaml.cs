@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Windows;
 using FlashFiles.ViewModels;
 using FlashFiles.Services;
@@ -6,10 +7,44 @@ namespace FlashFiles
 {
     public partial class MainWindow : Window
     {
-        public MainWindow()
+        private MainWindowViewModel _viewModel;        public MainWindow()
         {
             InitializeComponent();
-            DataContext = new MainWindowViewModel(new SettingsService());
+            _viewModel = new MainWindowViewModel(new SettingsService());
+            DataContext = _viewModel;
+            
+            // Handle window events to save state
+            SizeChanged += MainWindow_SizeChanged;
+            StateChanged += MainWindow_StateChanged;
+            Closing += MainWindow_Closing;
+        }private async void MainWindow_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            if (_viewModel != null && WindowState == WindowState.Normal)
+            {
+                _viewModel.WindowWidth = ActualWidth;
+                _viewModel.WindowHeight = ActualHeight;
+                // Auto-save settings when window size changes
+                await _viewModel.SaveSettingsAsync();
+            }
+        }
+
+        private async void MainWindow_StateChanged(object sender, System.EventArgs e)
+        {
+            if (_viewModel != null)
+            {
+                _viewModel.WindowState = WindowState;
+                // Auto-save settings when window state changes
+                await _viewModel.SaveSettingsAsync();
+            }
+        }
+
+        private async void MainWindow_Closing(object sender, System.ComponentModel.CancelEventArgs e)
+        {
+            if (_viewModel != null)
+            {
+                // Save settings when the application is closing
+                await _viewModel.SaveSettingsAsync();
+            }
         }
 
         private void LogListBox_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)

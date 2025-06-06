@@ -4,8 +4,10 @@
         xmlns:local="clr-namespace:FlashFiles"
         xmlns:converters="clr-namespace:FlashFiles.Converters"
         Title="FlashFiles - File Synchronization Tool" 
-        Height="700" Width="1000"
-        MinHeight="600" MinWidth="800"
+        Height="{Binding WindowHeight, Mode=TwoWay}" 
+        Width="{Binding WindowWidth, Mode=TwoWay}"
+        WindowState="{Binding WindowState, Mode=TwoWay}"
+        MinHeight="650" MinWidth="800"
         Background="{StaticResource BackgroundBrush}"
         WindowStartupLocation="CenterScreen">
     
@@ -317,19 +319,11 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                
-                <TextBlock Grid.Column="0" 
+                  <TextBlock Grid.Column="0" 
                            Text="Ready to synchronize files" 
                            FontSize="12"
                            Foreground="{StaticResource TextSecondaryBrush}" 
                            VerticalAlignment="Center"/>
-                
-                <Button Grid.Column="1" 
-                        Command="{Binding SaveSettingsCommand}"
-                        Content="Save Settings" 
-                        Style="{StaticResource SecondaryButton}" 
-                        FontSize="12" 
-                        Padding="12,4"/>
             </Grid>
         </Border>
     </Grid>
